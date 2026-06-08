@@ -3,39 +3,39 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-app = Flask(__name__, template_folder="../templates")
+app = Flask(__name__, template_folder="templates")
 
-@app.route('/')
+ISS_API = "https://api.wheretheiss.at/v1/satellites/25544"
+
+
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/get_iss_pos')
+
+@app.route("/get_iss_pos")
 def get_iss_pos():
     try:
-        r = requests.get(
-            "https://api.wheretheiss.at/v1/satellites/25544",
-            timeout=5
-        )
+        r = requests.get(ISS_API, timeout=5)
         data = r.json()
 
         return jsonify({
             "lat": data["latitude"],
             "lon": data["longitude"]
         })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/calculate')
+
+@app.route("/calculate")
 def calculate():
     try:
-        lat = float(request.args.get('lat'))
-        lon = float(request.args.get('lon'))
-        tz_name = request.args.get('tz', 'UTC')
+        lat = float(request.args.get("lat"))
+        lon = float(request.args.get("lon"))
+        tz_name = request.args.get("tz", "UTC")
 
-        r = requests.get(
-            "https://api.wheretheiss.at/v1/satellites/25544",
-            timeout=5
-        )
+        r = requests.get(ISS_API, timeout=5)
         data = r.json()
 
         iss_lat = data["latitude"]
@@ -47,12 +47,9 @@ def calculate():
         local_time = now.astimezone(ZoneInfo(tz_name))
 
         return jsonify({
-            "next_pass": local_time.strftime('%Y-%m-%d %I:%M:%S %p'),
+            "next_pass": local_time.strftime("%Y-%m-%d %I:%M:%S %p"),
             "distance_estimate": distance
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-def handler(environ, start_response):
-    return app(environ, start_response)
