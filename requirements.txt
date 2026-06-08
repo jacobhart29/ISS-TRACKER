@@ -3,3 +3,5 @@ skyfield
 pytz
 numpy
 sgp4
+requests
+vercel-wsgi
