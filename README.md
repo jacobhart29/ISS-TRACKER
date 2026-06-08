@@ -14,7 +14,7 @@ Make sure you have **Python 3.x** and **git** installed on your system.
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/jacobhart29/ISS-TRACKER](https://github.com/jacobhart29/ISS-TRACKER)
+   git clone https://github.com/jacobhart29/ISS-TRACKER
    cd ISS-TRACKER
    ```
 
