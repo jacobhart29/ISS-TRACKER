@@ -16,19 +16,29 @@ Make sure you have **Python 3.x** and **git** installed on your system.
    ```bash
    git clone [https://github.com/jacobhart29/ISS-TRACKER](https://github.com/jacobhart29/ISS-TRACKER)
    cd ISS-TRACKER
+   ```
 
 2. **Install the required dependencies:**
    ```bash
    pip install -r requirements.txt
+   ```
 
-# Running the Application
+### Running the Application
 
 1. **Start the local server:**
    ```bash
    python main.py
+   ```
 
-2 **Open your browser and navigate to:**
+2. **Open the localhost ip at:**
    ```bash
-   http://localhost:8080
+   http://localhost:8080/
+   ```
 
 
+# How to use
+
+1. Enter your latitude and longitude coordinates.
+2. Select your time zone of choice.
+3. Drop the pin on the map to confirm your location.
+4. Press Calculate to get the time the ISS will fly near/above your selected location.
