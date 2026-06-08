@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ISS Tracker</title>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    font-family: Arial;
+    color: white;
+}
+
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.85);
+    padding: 12px;
+    border-radius: 10px;
+    width: 300px;
+    z-index: 100;
+    backdrop-filter: blur(6px);
+}
+
+input, select {
+    width: 100%;
+    margin: 3px 0;
+}
+
+button {
+    width: 100%;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+#timer {
+    margin-top: 10px;
+    font-size: 13px;
+    white-space: pre-line;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+    <b>ISS Tracker</b><br><br>
+
+    <b>Set Location</b><br>
+    Lat<br>
+    <input id="lat" value="50"><br>
+
+    Lon<br>
+    <input id="lon" value="50"><br>
+
+    <b>Time Zone</b><br>
+    <select id="tz"></select>
+
+    <button onclick="setPin()">Set Pin</button>
+    <button onclick="getPass()">Next Pass</button>
+
+    <div id="timer">Next pass: --</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+    60,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+);
+
+camera.position.set(0, 0, 12);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+
+const light = new THREE.DirectionalLight(0xffffff, 1.8);
+light.position.set(10, 10, 10);
+scene.add(light);
+
+const loader = new THREE.TextureLoader();
+
+const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(5, 128, 128),
+    new THREE.MeshPhongMaterial({
+        map: loader.load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg")
+    })
+);
+
+scene.add(earth);
+
+const starGeo = new THREE.BufferGeometry();
+const starPos = [];
+
+for (let i = 0; i < 5000; i++) {
+    starPos.push(
+        (Math.random() - 0.5) * 1000,
+        (Math.random() - 0.5) * 1000,
+        (Math.random() - 0.5) * 1000
+    );
+}
+
+starGeo.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+
+scene.add(new THREE.Points(
+    starGeo,
+    new THREE.PointsMaterial({ size: 1 })
+));
+
+const issTexture = new THREE.TextureLoader().load(
+    "https://upload.wikimedia.org/wikipedia/commons/d/d0/International_Space_Station.svg"
+);
+
+const iss = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+        map: issTexture,
+        color: 0xffffff,
+        opacity: 1,
+        transparent: true
+    })
+);
+
+iss.scale.set(1, 1, 1);
+scene.add(iss);
+
+function createPin(){
+    const pin = new THREE.Group();
+
+    const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0x00ff66 })
+    );
+
+    const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.4, 12),
+        new THREE.MeshBasicMaterial({ color: 0x00aa44 })
+    );
+
+    stem.position.y = -0.25;
+
+    pin.add(head);
+    pin.add(stem);
+
+    return pin;
+}
+
+let pin;
+
+function latLonToVector3(lat, lon, radius){
+    const phi = (90 - lat) * Math.PI / 180;
+    const theta = (lon + 180) * Math.PI / 180;
+
+    return new THREE.Vector3(
+        -radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+    );
+}
+
+function setPin(){
+    const lat = parseFloat(document.getElementById("lat").value);
+    const lon = parseFloat(document.getElementById("lon").value);
+
+    if(pin) scene.remove(pin);
+
+    pin = createPin();
+    pin.position.copy(latLonToVector3(lat, lon, 5.05));
+    scene.add(pin);
+}
+
+async function updateISS(){
+    try {
+        const res = await fetch("/get_iss_pos");
+        const data = await res.json();
+
+        iss.position.copy(
+            latLonToVector3(data.lat, data.lon, 5.2)
+        );
+    } catch(e){}
+}
+
+function loadTimeZones(){
+    const select = document.getElementById("tz");
+
+    const zones = Intl.supportedValuesOf("timeZone");
+
+    zones.forEach(zone => {
+        const opt = document.createElement("option");
+        opt.value = zone;
+        opt.innerText = zone;
+        select.appendChild(opt);
+    });
+
+    select.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+loadTimeZones();
+
+function getNow(tz){
+    return new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+}
+
+function formatFull(ms){
+    const s = Math.floor(ms / 1000);
+    const sec = s % 60;
+    const min = Math.floor(s / 60) % 60;
+    const hr = Math.floor(s / 3600) % 24;
+    const day = Math.floor(s / 86400);
+
+    return `${day}d ${hr}h ${min}m ${sec}s`;
+}
+
+let countdown;
+
+async function getPass(){
+    const lat = document.getElementById("lat").value;
+    const lon = document.getElementById("lon").value;
+    const tz = document.getElementById("tz").value;
+
+    const res = await fetch(`/calculate?lat=${lat}&lon=${lon}&tz=${tz}`);
+    const data = await res.json();
+
+    if(!data.next_pass){
+        document.getElementById("timer").innerText = "No pass found";
+        return;
+    }
+
+    const passTime = new Date(data.next_pass).getTime();
+
+    clearInterval(countdown);
+
+    countdown = setInterval(()=>{
+
+        const now = getNow(tz);
+        const diff = passTime - now.getTime();
+
+        const nowStr = now.toLocaleString("en-US", {
+            timeZone: tz,
+            hour12: true
+        });
+
+        if(diff <= 0){
+            document.getElementById("timer").innerText =
+                `ISS is passing now!\nNow: ${nowStr}`;
+            clearInterval(countdown);
+            return;
+        }
+
+        document.getElementById("timer").innerText =
+            `Next pass in: ${formatFull(diff)}\nNow: ${nowStr}`;
+
+    },1000);
+}
+
+function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene,camera);
+}
+
+animate();
+
+setInterval(updateISS, 2000);
+updateISS();
+
+window.addEventListener("resize",()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+
+</body>
+</html>
