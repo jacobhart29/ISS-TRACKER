@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, jsonify
-from skyfield.api import load, wgs84
+from skyfield.api import Loader, wgs84
 from zoneinfo import ZoneInfo
 
-app = Flask(__name__, template_folder='../templates')
+load = Loader('/tmp')
 
+app = Flask(__name__, template_folder='../templates')
 _iss = None
 _ts = None
 
